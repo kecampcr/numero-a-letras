@@ -22,20 +22,32 @@ public abstract class NumberToLetterConverter {
             "TRESCIENTOS ", "CUATROCIENTOS ", "QUINIENTOS ", "SEISCIENTOS ",
             "SETECIENTOS ", "OCHOCIENTOS ", "NOVECIENTOS " };
 
-    /**
-     * Convierte a letras un numero de la forma $123,456.32
-     * 
+   /**
+     * Convertir un valor a su correspondiente descripción literal, el dato siempre se formatea a 2 decimales
+     * El numero es valido si esta entre 0 y 999,999,999,999.99
      * @param number
      *            Numero en representacion texto
      * @throws NumberFormatException
      *             Si valor del numero no es valido (fuera de rango o )
      * @return Numero en letras
      */
-    public static String convertNumberToLetter(String number)
+    public static String convertir(String number)
             throws NumberFormatException {
-        return convertNumberToLetter(Double.parseDouble(number));
+        return convertNumberToLetter(new BigDecimal(number),"");
     }
-
+    
+    /**
+     * 
+     * Convertir un valor a su correspondiente descripción literal, el dato siempre se formatea a 2 decimales
+     * El numero es valido si esta entre 0 y 999,999,999,999.99
+     * @param number
+     * @return
+     * @throws NumberFormatException
+     */
+    public static String convertir(BigDecimal number)
+    throws NumberFormatException {
+return convertNumberToLetter(number,"");
+}
     /**
      * Convierte un numero en representacion numerica a uno en representacion de
      * texto. El numero es valido si esta entre 0 y 999'999.999
@@ -46,33 +58,44 @@ public abstract class NumberToLetterConverter {
      * @throws NumberFormatException
      *             Si el numero esta fuera del rango
      */
-    public static String convertNumberToLetter(double doubleNumber)
+    public static String convertNumberToLetter(BigDecimal montoNumber,String nombreMoneda)
             throws NumberFormatException {
 
         StringBuilder converted = new StringBuilder();
 
-        String patternThreeDecimalPoints = "#.###";
+        String patternDecimalPoints = "#.00";
 
-        DecimalFormat format = new DecimalFormat(patternThreeDecimalPoints);
+        DecimalFormat format = new DecimalFormat(patternDecimalPoints);
         format.setRoundingMode(RoundingMode.DOWN);
 
-        // formateamos el numero, para ajustarlo a el formato de tres puntos
-        // decimales
-        String formatedDouble = format.format(doubleNumber);
-        doubleNumber = Double.parseDouble(formatedDouble);
-
+        // formateamos el numero, para ajustarlo a el formato de dos puntos decimales
+        String formatedNum = format.format(montoNumber);
+        montoNumber = new BigDecimal(formatedNum);
+        
         // Validamos que sea un numero legal
-        if (doubleNumber > 999999999)
+        if (montoNumber.compareTo(new BigDecimal("999999999999"))>0)
             throw new NumberFormatException(
-                    "El numero es mayor de 999'999.999, "
-                            + "no es posible convertirlo");
+                    "El numero es mayor de 999,999,999,999, "
+                            + " y no es posible convertirlo actualmente.");
+                            
 
-        if (doubleNumber < 0)
+       if (montoNumber.compareTo(BigDecimal.ZERO) < 0)
             throw new NumberFormatException("El numero debe ser positivo");
 
-        String splitNumber[] = String.valueOf(doubleNumber).replace('.', '#')
+        String splitNumber[] = String.valueOf(montoNumber).replace('.', '#')
                 .split("#");
-
+        
+        // Descompone el trio de miles de millones
+        int milesDemillon = Integer.parseInt(
+        		String.valueOf(getDigitAt(splitNumber[0],11)) +
+                String.valueOf(getDigitAt(splitNumber[0], 10))+
+                String.valueOf(getDigitAt(splitNumber[0], 9)));
+        if (milesDemillon == 1)
+            converted.append("MIL ");
+        else if (milesDemillon > 1)
+            converted.append(convertNumber(String.valueOf(milesDemillon))
+                    + "MIL ");
+        
         // Descompone el trio de millones
         int millon = Integer.parseInt(String.valueOf(getDigitAt(splitNumber[0],
                 8))
@@ -102,25 +125,28 @@ public abstract class NumberToLetterConverter {
         if (cientos == 1)
             converted.append("UN");
 
-        if (millon + miles + cientos == 0)
+        if (milesDemillon+millon + miles + cientos == 0)
             converted.append("CERO");
         if (cientos > 1)
             converted.append(convertNumber(String.valueOf(cientos)));
 
-        converted.append("PESOS");
+        //Agrega la moneda
+        converted.append(nombreMoneda);
 
-        // Descompone los centavos
+        // Descompone los centavos      
         int centavos = Integer.parseInt(String.valueOf(getDigitAt(
                 splitNumber[1], 2))
                 + String.valueOf(getDigitAt(splitNumber[1], 1))
                 + String.valueOf(getDigitAt(splitNumber[1], 0)));
+        
         if (centavos == 1)
-            converted.append(" CON UN CENTAVO");
+            converted.append(" CON UN CÉNTIMO");
         else if (centavos > 1)
             converted.append(" CON " + convertNumber(String.valueOf(centavos))
-                    + "CENTAVOS");
+                    + "CÉNTIMOS");
 
-        return converted.toString();
+        //DEVOLVER EL RESULTADO FINAL ELIMINANDO ESPACIOS DOBLES VACÍOS
+        return converted.toString().replace("  ", " ");
     }
 
     /**
